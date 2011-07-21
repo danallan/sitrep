@@ -1,0 +1,141 @@
+#!/usr/bin/php
+<?php
+
+ /*
+  * sitrep
+  * v1.1.3
+  *
+  * Dan Armendariz
+  * danallan@mit.edu
+  * 16 Jul 2011
+  *
+  * A command line program to notify a user by the Notifo service:
+  * http://notifo.com
+  *
+  * Usage.
+  * By default, the message will be sent with the hostname as the label.
+  * Any of the following will send the message "this is a message".
+  * sitrep "this is a message"
+  * sitrep this is a message
+  * echo "this is a message" | sitrep
+  * echo "lots of data" | sitrep this is a message
+  *
+  * If data is piped to sitrep, it's packaged as a payload and delivered
+  * to the user via URL. Only the last line of the payload or the message
+  * passed by parameter will be used as the message of the notification. 
+  */
+
+
+// define the user and access code
+define("USER", "danallan");
+define("KEY",  "379f8006c4638989ae4582a0a655bfb1");
+
+
+// ANSI colors
+define("GREEN", "\033[1;32m");
+define("RED",   "\033[1;31m");
+define("CLEAR", "\033[0m");
+
+
+  /////////
+ // Generate the notification
+/////////
+
+$msg = "Dradis contact";
+$payload = array();
+
+// see if the user wants the message to come via pipe
+ // we're using an ugly ugly hack here; PHP 5.1 doesn't properly return false
+ // for ftell(STDIN) if no data was piped, so we're relying also on the gid of
+ // the data from stdin to tell us if there is any.
+$stat = fstat(STDIN); 
+if (ftell(STDIN) === 0 && $stat['gid'] == posix_getegid()) {
+    // data provided by stdin: echo it back out and remember data
+    while ($line = fgets(STDIN)) echo ($payload[] = $line);
+}
+
+// fetch last line of stdin
+if(trim(end($payload)) != "") $msg = end($payload);
+
+// use message passed via param
+if($argc > 1) $msg = implode(" ", array_slice($argv, 1)); 
+
+$data = array(
+    "key"     => KEY,
+    "user"    => USER,
+    "title"   => php_uname("n"),
+    "msg"     => $msg,
+    "payload" => implode("",$payload));
+
+  /////////
+ // Send the notification
+/////////
+
+echo "Sending SITREP to ".USER."..\n";
+
+$url = "http://sitrep.danallan.net/msg.php";
+
+$curl = curl_init();
+curl_setopt($curl, CURLOPT_URL, $url);
+curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+curl_setopt($curl, CURLOPT_POST, true);
+curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($curl, CURLOPT_HEADER, false);
+
+$r = curl_exec($curl);
+
+  /////////
+ // Output the result of our transmission
+/////////
+
+// uh oh, some transmission error
+if($r === false) msg(false, USER, "Cannot send data to sitrep server.");
+
+// decode the response
+$r = @json_decoder($r);
+
+// check for decode problem
+if($r == null) msg(false, USER, "Unknown response from sitrep server.");
+
+if(isset($r['status']) && $r['status'] == "success")
+    msg(true, USER, urldecode($r['url']));
+else
+    msg(false, USER, $r['response_message']);
+
+
+  /////////
+ // Functions
+/////////
+
+// show a status message to the user
+function msg($success = false, $user, $msg) {
+    echo "SITREP to $user ".
+         (($success) ? colorize("sent: ", GREEN) : colorize("failed: ", RED)).
+        $msg."\n";
+    exit;
+}
+
+// return the message with requested ANSI color
+function colorize($msg, $color) { return $color.$msg.CLEAR; }
+
+// some older PHP installs don't have json_decode..
+// modified from http://us2.php.net/manual/en/function.json-decode.php#100740
+function json_decoder($json) {
+    if(function_exists('json_decode')) return json_decode($json, true);
+    $comment = false;
+    $out = '$x=';
+    for ($i=0; $i<strlen($json); $i++) {
+        if (!$comment) {
+            if      (($json[$i]=='{') || ($json[$i]=='[')) $out .= ' array(';
+            else if (($json[$i]=='}') || ($json[$i]==']')) $out .= ')';
+            else if  ($json[$i]==':')                      $out .= '=>';
+            else                                           $out .= $json[$i];          
+        }
+        else $out .= $json[$i];
+        if ($json[$i] == '"' && $json[($i-1)]!="\\") $comment = !$comment;
+    }
+    eval($out . ';');
+    return $x;
+}
+
+?>
