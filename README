@@ -1,0 +1,27 @@
+sitrep
+v1.1.3
+  
+Dan Armendariz
+danallan@mit.edu
+16 Jul 2011
+  
+A command line program to notify a user by the Notifo service:
+http://notifo.com
+  
+=== Usage ===
+
+By default, the message will be sent with the hostname as the label.
+
+Any of the following will send the message "this is a message".
+  sitrep "this is a message"
+  sitrep this is a message
+  echo "this is a message" | sitrep
+  echo "lots of data" | sitrep this is a message
+
+If data is piped to sitrep, it's packaged as a payload and delivered
+to the user via URL. Only the last line of the payload or the message
+passed by parameter will be used as the message of the notification. 
+
+=== Thanks ===
+
+Thanks to John Lee.

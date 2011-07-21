@@ -27,9 +27,8 @@
 
 
 // define the user and access code
-define("USER", "danallan");
-define("KEY",  "379f8006c4638989ae4582a0a655bfb1");
-
+define("USER", $_ENV["SITREP_USER"]);
+define("KEY",  $_ENV["SITREP_KEY"]);
 
 // ANSI colors
 define("GREEN", "\033[1;32m");
