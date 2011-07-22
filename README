@@ -9,6 +9,11 @@ A command line program for Linux and Mac OS X to notify a user via the Notifo se
   
 === Usage ===
 
+The first time you use sitrep on a machine, call it with no options, like:
+  sitrep
+To run setup and get everything ready. You can rerun setup at anytime with:
+  sitrep --setup
+
 By default, the message will be sent with the hostname of the machine on which it is run as the label.
 
 Any of the following will send the message "this is a message".

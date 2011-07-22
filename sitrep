@@ -2,7 +2,7 @@
 <?php
 
  /*
-  * sitrep v1.2 
+  * sitrep v1.2.1 
   *
   * http://sitrep.danallan.net
   *
@@ -13,6 +13,12 @@
   * Notifo service: http://notifo.com
   *
   * === Usage ===
+  *
+  * The first time you use sitrep on a machine, call it with no options, like:
+  *   sitrep
+  * To run setup and get everything ready. You can rerun setup at anytime with:
+  *   sitrep --setup
+  *
   * By default, the message will be sent with the hostname of the machine on 
   * which it is run as the label.
   *
@@ -126,8 +132,6 @@ if($r === false) msg(false, "Cannot send data to sitrep server.");
 
 // decode the response
 $r = @json_decoder($r);
-
-print_r($r);
 
 // check for decode problem
 if($r == null) msg(false, "Unknown response from sitrep server.");
