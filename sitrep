@@ -2,7 +2,7 @@
 <?php
 
  /*
-  * sitrep v1.1.3
+  * sitrep v1.2 
   *
   * http://sitrep.danallan.net
   *
@@ -32,9 +32,14 @@
   */
 
 
-// define the user and access code
-define("USER", $_ENV["SITREP_USER"]);
-define("KEY",  $_ENV["SITREP_KEY"]);
+// define a file that will contain authentication pair
+define("DOTFILE", $_SERVER['HOME']."/.sitrep");
+
+// separates usernames from keys in the dotfile
+define("PIPE", "|");
+
+// valid chars for users/keys (suitable for a regex char class)
+define("VALID", "A-Za-z0-9_\.\-");
 
 // ANSI colors
 define("GREEN", "\033[1;32m");
@@ -43,9 +48,31 @@ define("CLEAR", "\033[0m");
 
 
   /////////
+ // Setup and fetching the authenticaion pair
+/////////
+
+// does the user want to run setup?
+if ($argc > 1 && $argv['1'] == "--setup")
+    setup("Re-running setup at your request.");
+
+// a variable for our authentication pair
+$pair = null;
+
+// first let's see if our configuration file exists
+if (!file_exists(DOTFILE))
+    setup("Welcome to SITREP! Let's get you started.");
+
+// does exist! let's try to pull the data from it and validate it
+if (($pair = file_get_contents(DOTFILE)) === false || 
+    !is_array($pair = explode(PIPE, $pair)))
+    setup("SITREP configuration file cannot be read, please re-setup:");
+
+
+  /////////
  // Generate the notification
 /////////
 
+// default message and payload
 $msg = "Dradis contact";
 $payload = array();
 
@@ -66,17 +93,18 @@ if(trim(end($payload)) != "") $msg = end($payload);
 if($argc > 1) $msg = implode(" ", array_slice($argv, 1)); 
 
 $data = array(
-    "key"     => KEY,
-    "user"    => USER,
+    "user"    => $pair[0],
+    "key"     => $pair[1],
     "title"   => php_uname("n"),
     "msg"     => $msg,
     "payload" => implode("",$payload));
+
 
   /////////
  // Send the notification
 /////////
 
-echo "Sending SITREP to ".USER."..\n";
+echo "Sending SITREP, please wait..\n";
 
 $url = "http://sitrep.danallan.net/msg.php";
 
@@ -94,37 +122,80 @@ $r = curl_exec($curl);
 /////////
 
 // uh oh, some transmission error
-if($r === false) msg(false, USER, "Cannot send data to sitrep server.");
+if($r === false) msg(false, "Cannot send data to sitrep server.");
 
 // decode the response
 $r = @json_decoder($r);
 
-// check for decode problem
-if($r == null) msg(false, USER, "Unknown response from sitrep server.");
+print_r($r);
 
-if(isset($r['status']) && $r['status'] == "success")
-    msg(true, USER, urldecode($r['url']));
-else
-    msg(false, USER, $r['response_message']);
+// check for decode problem
+if($r == null) msg(false, "Unknown response from sitrep server.");
+else {
+    // iterate over each notification the server sent
+    foreach($r['n'] as $n) {
+        if(isset($n['status']) && $n['status'] == "success")
+            msg(true, "", $n['u'], false);
+        else
+            msg(false, $n['response_message'], $n['u'], false);
+    }   
+    echo "SITREP URL: ".urldecode($r['h'])."\n";
+}
 
 
   /////////
  // Functions
 /////////
 
-// show a status message to the user
-function msg($success = false, $user, $msg) {
-    echo "SITREP to $user ".
-         (($success) ? colorize("sent: ", GREEN) : colorize("failed: ", RED)).
-        $msg."\n";
+/** setup()
+  * input: $msg message string
+  * Queries for and writes the user's authorization pair to the dotfile
+  */
+function setup($msg) {
+    echo "$msg\n\n";
+
+    echo "Enter your callsign: ";
+    $callsign = preg_replace('/[^'.VALID.']/','',fgets(STDIN));
+ 
+    echo "Enter your sitrep key: ";
+    $key = preg_replace('/[^'.VALID.']/','',fgets(STDIN));
+
+    // attempt to write config file, and notify user of result
+    if(file_put_contents(DOTFILE, $callsign.PIPE.$key))
+        echo colorize("Setup complete!", GREEN);
+    else
+        echo colorize("Could not complete setup", RED).
+             ": could not store data in ".DOTFILE;
+    echo "\n";
+
     exit;
 }
 
-// return the message with requested ANSI color
+/** msg()
+  * input: $success completion status, $msg message string, $user string, $quit
+  * Print a notification status message to the console, quitting afterwards
+  * by default (but provide an option to continue processing).
+  */
+function msg($success, $msg, $user = null, $quit = true) {
+    echo "SITREP ".(($user != null) ? "to $user " : "").
+         (($success) ? colorize("sent! ", GREEN) : colorize("failed: ", RED)).
+        $msg."\n";
+    
+    if($quit) exit;
+}
+
+/** colorize()
+  * input: $msg string to color with selected ANSI $color code
+  * Returns an ANSI-colored string with a color reset sequence at the end.
+  */
 function colorize($msg, $color) { return $color.$msg.CLEAR; }
 
-// some older PHP installs don't have json_decode..
-// modified from http://us2.php.net/manual/en/function.json-decode.php#100740
+/** json_decoder()
+  * input: $json string
+  * output: PHP associative array from json object
+  * Some older PHP installs don't have json_decode()..
+  * modified from http://us2.php.net/manual/en/function.json-decode.php#100740
+  */
 function json_decoder($json) {
     if(function_exists('json_decode')) return json_decode($json, true);
     $comment = false;
