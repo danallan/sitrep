@@ -1,41 +1,41 @@
 #!/usr/bin/php
 <?php
 
- /*
-  * sitrep v1.2.1 
-  *
-  * http://sitrep.danallan.net
-  *
-  * Dan Armendariz
-  * danallan@mit.edu
-  *
-  * A command line program for Linux and Mac OS X to notify a user via the 
-  * Notifo service: http://notifo.com
-  *
-  * === Usage ===
-  *
-  * The first time you use sitrep on a machine, call it with no options, like:
-  *   sitrep
-  * To run setup and get everything ready. You can rerun setup at anytime with:
-  *   sitrep --setup
-  *
-  * By default, the message will be sent with the hostname of the machine on 
-  * which it is run as the label.
-  *
-  * Any of the following will send the message "this is a message".  
-  *   sitrep "this is a message"
-  *   sitrep this is a message
-  *   echo "this is a message" | sitrep
-  *   echo "lots of data" | sitrep this is a message
-  *
-  * All cases will return a publicly-accessible URL of the sitrep for sharing 
-  * or documentation.
-  * 
-  * If data is piped to sitrep, it's packaged as a payload and delivered to the
-  * user via URL. Only the last line of the payload or the message passed by
-  * parameter will be used as the message of the notification.
-  *
-  */
+/*
+ * sitrep v1.2.3 
+ *
+ * http://sitrep.danallan.net
+ *
+ * Dan Armendariz
+ * danallan@mit.edu
+ *
+ * A command line program for Linux and Mac OS X to notify a user via the 
+ * Notifo service: http://notifo.com
+ *
+ * === Usage ===
+ *
+ * The first time you use sitrep on a machine, call it with no options, like:
+ *   sitrep
+ * To run setup and get everything ready. You can rerun setup at anytime with:
+ *   sitrep --setup
+ *
+ * By default, the message will be sent with the hostname of the machine on 
+ * which it is run as the label.
+ *
+ * Any of the following will send the message "this is a message".  
+ *   sitrep "this is a message"
+ *   sitrep this is a message
+ *   echo "this is a message" | sitrep
+ *   echo "lots of data" | sitrep this is a message
+ *
+ * All cases will return a publicly-accessible URL of the sitrep for sharing 
+ * or documentation.
+ * 
+ * If data is piped to sitrep, it's packaged as a payload and delivered to the
+ * user via URL. Only the last line of the payload or the message passed by
+ * parameter will be used as the message of the notification.
+ *
+ */
 
 
 // define a file that will contain authentication pair
@@ -46,6 +46,9 @@ define("PIPE", "|");
 
 // valid chars for users/keys (suitable for a regex char class)
 define("VALID", "A-Za-z0-9_\.\-");
+
+// the sitrep server URL
+define("URL", "http://sitrep.danallan.net/msg.php");
 
 // ANSI colors
 define("GREEN", "\033[1;32m");
@@ -65,11 +68,11 @@ if ($argc > 1 && $argv['1'] == "--setup")
 $pair = null;
 
 // first let's see if our configuration file exists
-if (!file_exists(DOTFILE))
+if (@file_exists(DOTFILE) == false)
     setup("Welcome to SITREP! Let's get you started.");
 
 // does exist! let's try to pull the data from it and validate it
-if (($pair = file_get_contents(DOTFILE)) === false || 
+if (($pair = @file_get_contents(DOTFILE)) === false || 
     !is_array($pair = explode(PIPE, $pair)))
     setup("SITREP configuration file cannot be read, please re-setup:");
 
@@ -112,10 +115,8 @@ $data = array(
 
 echo "Sending SITREP, please wait..\n";
 
-$url = "http://sitrep.danallan.net/msg.php";
-
 $curl = curl_init();
-curl_setopt($curl, CURLOPT_URL, $url);
+curl_setopt($curl, CURLOPT_URL, URL);
 curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($curl, CURLOPT_POST, true);
 curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
@@ -165,7 +166,7 @@ function setup($msg) {
     $key = preg_replace('/[^'.VALID.']/','',fgets(STDIN));
 
     // attempt to write config file, and notify user of result
-    if(file_put_contents(DOTFILE, $callsign.PIPE.$key))
+    if(@file_put_contents(DOTFILE, $callsign.PIPE.$key))
         echo colorize("Setup complete!", GREEN);
     else
         echo colorize("Could not complete setup", RED).
