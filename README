@@ -26,6 +26,10 @@ All cases will return a publicly-accessible URL of the sitrep for sharing or doc
 
 If data is piped to sitrep, it's packaged as a payload and delivered to the user via URL. Only the last line of the payload or the message passed by parameter will be used as the message of the notification. 
 
+If you want to get fancy with sitrep, you can ensure it's run only if the previous command completed successfully with:
+  a_command && sitrep "a_command done"
+
+
 === Thanks ===
 
 Thanks to John Lee.

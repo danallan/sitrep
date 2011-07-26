@@ -2,7 +2,7 @@
 <?php
 
 /*
- * sitrep v1.2.3 
+ * sitrep v1.2.5 
  *
  * http://sitrep.danallan.net
  *
@@ -35,6 +35,10 @@
  * user via URL. Only the last line of the payload or the message passed by
  * parameter will be used as the message of the notification.
  *
+ * If you want to get fancy with sitrep, you can ensure it's run only if the
+ * previous command completed successfully with:
+ *   a_command && sitrep "a_command done"
+ *
  */
 
 
@@ -55,6 +59,11 @@ define("GREEN", "\033[1;32m");
 define("RED",   "\033[1;31m");
 define("CLEAR", "\033[0m");
 
+// PHP Version
+if (!defined('PHP_VERSION_ID')) {
+    $version = explode('.', PHP_VERSION);
+    define('PHP_VERSION_ID', ($version[0]*10000+$version[1]*100+$version[2]));
+}
 
   /////////
  // Setup and fetching the authenticaion pair
@@ -90,9 +99,11 @@ $payload = array();
  // for ftell(STDIN) if no data was piped, so we're relying also on the gid of
  // the data from stdin to tell us if there is any.
 $stat = fstat(STDIN); 
-if (ftell(STDIN) === 0 && $stat['gid'] == posix_getegid()) {
+$hack = (PHP_VERSION_ID < 50200) ? $stat['gid'] == posix_getegid() : true;
+if (ftell(STDIN) === 0 && $hack) {
     // data provided by stdin: echo it back out and remember data
     while ($line = fgets(STDIN)) echo ($payload[] = $line);
+    echo "\n";
 }
 
 // fetch last line of stdin
@@ -186,7 +197,8 @@ function msg($success, $msg, $user = null, $quit = true) {
          (($success) ? colorize("sent! ", GREEN) : colorize("failed: ", RED)).
         $msg."\n";
     
-    if($quit) exit;
+    // return an appropriate linux-y exit code (0 == sucess, 1 == fail)
+    if($quit) exit((int)(!$success));
 }
 
 /** colorize()
