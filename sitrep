@@ -2,7 +2,7 @@
 <?php
 
 /*
- * sitrep v1.2.5 
+ * sitrep v1.2.6 
  *
  * http://sitrep.danallan.net
  *
@@ -155,7 +155,8 @@ else {
         else
             msg(false, $n['response_message'], $n['u'], false);
     }   
-    echo "SITREP URL: ".urldecode($r['h'])."\n";
+    $h = urldecode($r['h']);
+    if($h != "") echo "SITREP URL: ".urldecode($r['h'])."\n";
 }
 
 
